@@ -3,12 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather Agent 🌤️ - Development</title>
+    <title>Weather Agent 🌤️ - AI Weather Assistant</title>
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
+    <!-- Environment Banner (hidden by default, shown by JS if dev) -->
+    <div class="env-banner" id="envBanner" style="display: none;">
+        🚧 DEVELOPMENT ENVIRONMENT 🚧
+    </div>
+
     <div class="container">
         <!-- Header -->
         <header class="header">
@@ -17,7 +22,9 @@
                     <i class="fas fa-cloud-sun weather-icon"></i>
                     <h1>🌤️ Weather Agent</h1>
                 </div>
-                <div class="version-badge dev">v1.1.0-dev</div>
+                <div class="version-badge" id="versionBadge">
+                    v1.1.0
+                </div>
                 <div class="subtitle">
                     Your AI-powered weather assistant
                 </div>

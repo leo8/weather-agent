@@ -1,3 +1,58 @@
+// Environment Detection and Setup
+function detectEnvironment() {
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    
+    // Detect environment based on URL
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || port === '8000') {
+        return 'local';
+    } else if (hostname.includes('-dev') || hostname.includes('development')) {
+        return 'development';
+    } else {
+        return 'production';
+    }
+}
+
+function setupEnvironmentUI() {
+    const env = detectEnvironment();
+    const envBanner = document.getElementById('envBanner');
+    const versionBadge = document.getElementById('versionBadge');
+    const container = document.querySelector('.container');
+    
+    // Update version badge
+    versionBadge.className = `version-badge ${env === 'production' ? 'prod' : env === 'development' ? 'dev' : 'local'}`;
+    
+    // Update version text
+    if (env === 'local') {
+        versionBadge.textContent = 'v1.1.0-local';
+        document.title = 'Weather Agent 🌤️ - Local Development';
+    } else if (env === 'development') {
+        versionBadge.textContent = 'v1.1.0-dev';
+        document.title = 'Weather Agent 🌤️ - Development';
+    } else {
+        versionBadge.textContent = 'v1.1.0';
+        document.title = 'Weather Agent 🌤️ - AI Weather Assistant';
+    }
+    
+    // Show environment banner for non-production
+    if (env !== 'production') {
+        envBanner.style.display = 'block';
+        container.classList.add('has-banner');
+        
+        if (env === 'local') {
+            envBanner.textContent = '💻 LOCAL DEVELOPMENT ENVIRONMENT 💻';
+            envBanner.style.background = 'linear-gradient(135deg, #339af0, #228be6)';
+        } else {
+            envBanner.textContent = '🚧 DEVELOPMENT ENVIRONMENT 🚧';
+        }
+    }
+    
+    console.log(`🌤️ Weather Agent running in ${env} environment`);
+}
+
+// Initialize environment UI when page loads
+document.addEventListener('DOMContentLoaded', setupEnvironmentUI);
+
 // Weather Agent Frontend JavaScript
 class WeatherAgent {
     constructor() {

@@ -37,12 +37,12 @@ body {
 .container {
     max-width: 800px;
     margin: 0 auto;
+    padding: 20px;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     background: var(--white);
     box-shadow: var(--shadow-lg);
-    padding-top: 40px; /* Account for dev banner */
 }
 
 /* Header */
@@ -584,6 +584,27 @@ body {
     background: var(--text-light);
 }
 
+/* Environment Banner */
+.env-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+    text-align: center;
+    padding: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+/* Adjust container when banner is visible */
+.container.has-banner {
+    padding-top: 40px;
+}
+
 .version-badge {
     position: absolute;
     top: -10px;
@@ -594,6 +615,7 @@ body {
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    transition: all 0.3s ease;
 }
 
 .version-badge.dev {
@@ -608,19 +630,8 @@ body {
     box-shadow: 0 2px 8px rgba(81, 207, 102, 0.3);
 }
 
-/* Add a subtle dev environment indicator */
-body::before {
-    content: "🚧 DEVELOPMENT ENVIRONMENT 🚧";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+.version-badge.local {
+    background: linear-gradient(135deg, #339af0, #228be6);
     color: white;
-    text-align: center;
-    padding: 4px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    z-index: 1000;
-    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    box-shadow: 0 2px 8px rgba(51, 154, 240, 0.3);
 } 
