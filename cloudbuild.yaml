@@ -1,11 +1,11 @@
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/weather-agent:$BUILD_ID', '.']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID', '.']
     
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/weather-agent:$BUILD_ID']
+    args: ['push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID']
     
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -13,11 +13,11 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'weather-agent'
+      - '${_SERVICE_NAME}'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/weather-agent:$BUILD_ID'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID'
       - '--region'
-      - 'us-central1'
+      - '${_REGION}'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
@@ -29,14 +29,27 @@ steps:
       - '1'
       - '--max-instances'
       - '10'
+      - '--min-instances'
+      - '0'
+      - '--concurrency'
+      - '80'
+      - '--timeout'
+      - '300'
       - '--set-env-vars'
       - 'ENVIRONMENT=production'
       - '--set-secrets'
       - 'OPENAI_API_KEY=openai-api-key:latest,OPENWEATHER_API_KEY=openweather-api-key:latest'
+      - '--tag'
+      - 'main'
 
 # Store images in Container Registry
 images:
-  - 'gcr.io/$PROJECT_ID/weather-agent:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$BUILD_ID'
+
+# Substitution variables
+substitutions:
+  _SERVICE_NAME: 'weather-agent'
+  _REGION: 'us-central1'
 
 # Build options
 options:
