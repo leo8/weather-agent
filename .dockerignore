@@ -49,9 +49,10 @@ Thumbs.db
 .gitignore
 
 # Documentation
-README.md
 Plan.md
-*.md
+# Note: README.md is needed for package build, so it's not excluded
+# Other markdown files can still be excluded
+DEPLOYMENT.md
 
 # Tests
 tests/
