@@ -1,19 +1,15 @@
 # 🌤️ Weather Agent
 
-A sophisticated natural language weather agent with Google Calendar integration, built for AI Engineer recruitment demonstration.
-
-## 🎯 Project Overview
-
 This weather agent understands natural language weather queries and provides intelligent responses using live weather data. It demonstrates modern Python backend development, API integration, natural language processing, and cloud deployment practices.
 
 ### Key Features
 - 🧠 **Natural Language Processing**: Understands complex weather queries using OpenAI GPT
 - 🌍 **Live Weather Data**: Real-time weather information from OpenWeatherMap API
-- 📅 **Calendar Integration**: Google Calendar utilities for weather-aware scheduling
+- 📅 **Calendar Integration**: *Planned feature - Google Calendar utilities for weather-aware scheduling*
 - 🚀 **Modern Architecture**: FastAPI with async support, automatic OpenAPI docs
 - ☁️ **Cloud Deployment**: Production-ready deployment on Google Cloud Run
 - 🔒 **Enterprise Security**: Google Secret Manager for secure API key management
-- 🧪 **Comprehensive Testing**: 100% test coverage with pytest and async testing
+- 🧪 **Comprehensive Testing**: Complete test coverage with pytest and async testing
 
 ### Example Queries
 - *"What's the weather in New York?"*
@@ -28,7 +24,6 @@ This weather agent understands natural language weather queries and provides int
 - **FastAPI**: High-performance web framework with automatic OpenAPI docs
 - **OpenAI GPT**: Advanced natural language understanding
 - **OpenWeatherMap API**: Reliable weather data source  
-- **Google Calendar API**: Calendar integration utilities
 - **UV**: Modern, fast Python dependency management
 - **pytest**: Comprehensive testing framework
 - **Google Cloud Run**: Serverless container deployment
@@ -69,7 +64,6 @@ This weather agent understands natural language weather queries and provides int
 - Required API keys:
   - OpenAI API key
   - OpenWeatherMap API key
-  - Google Calendar API credentials (optional)
 
 ### Local Development Setup
 
@@ -101,7 +95,6 @@ This weather agent understands natural language weather queries and provides int
    ```env
    OPENAI_API_KEY=sk-your-openai-key-here
    OPENWEATHER_API_KEY=your-openweather-key-here
-   GOOGLE_CALENDAR_CREDENTIALS=path/to/credentials.json  # Optional
    ENVIRONMENT=development
    LOG_LEVEL=INFO
    ```
@@ -140,7 +133,7 @@ GET /weather/current?location=London&units=metric
 GET /weather/forecast?location=Tokyo&days=5
 ```
 
-#### Calendar Integration
+#### Calendar Integration *(Coming Soon)*
 ```http
 POST /calendar/weather-check
 Content-Type: application/json
@@ -150,6 +143,7 @@ Content-Type: application/json
   "location": "San Francisco"
 }
 ```
+*Note: Calendar integration endpoints are planned but not yet implemented.*
 
 ### Response Format
 ```json
@@ -186,11 +180,10 @@ uv run pytest tests/test_integration.py -v
 ```
 
 ### Test Coverage
-- **Unit Tests**: Individual service and utility functions
+- **Unit Tests**: Individual service functions (weather, NLP)
 - **Integration Tests**: End-to-end API workflows
 - **Error Handling**: Network failures, invalid inputs, API limits
-- **Security Tests**: Input validation, authentication
-- **Performance Tests**: Response times, concurrent requests
+- **Health Checks**: Service availability and status
 
 ## 🚀 Deployment
 
@@ -268,67 +261,7 @@ git push origin main
 # → Triggers tests + deployment to production
 ```
 
-## 🔍 Monitoring & Troubleshooting
 
-### Health Checks
-```bash
-# Local
-curl http://localhost:8000/health
-
-# Production
-curl https://your-service-url/health
-```
-
-### View Logs
-```bash
-# Local development
-# Logs appear in terminal
-
-# Production logs
-gcloud logs read "resource.type=cloud_run_revision AND resource.labels.service_name=weather-agent" --limit=50
-```
-
-### Common Issues
-
-#### 1. API Key Issues
-- Verify secrets are created: `gcloud secrets list`
-- Check service account permissions
-- Ensure API keys are valid and have sufficient quota
-
-#### 2. Build Failures
-- Check `cloudbuild.yaml` syntax
-- Verify all dependencies in `pyproject.toml`
-- Check Docker build context with `.dockerignore`
-
-#### 3. Permission Errors
-```bash
-# Re-run permission setup
-./setup-cicd.sh
-
-# Check service account permissions
-gcloud projects get-iam-policy $GOOGLE_CLOUD_PROJECT
-```
-
-## 🔒 Security
-
-### API Key Management
-- ✅ Secrets stored in Google Secret Manager
-- ✅ Never committed to version control
-- ✅ Least-privilege service account access
-- ✅ Regular key rotation recommended
-
-### Application Security
-- ✅ Input validation with Pydantic models
-- ✅ CORS configuration for frontend integration
-- ✅ Rate limiting protection
-- ✅ HTTPS enforcement (Cloud Run default)
-- ✅ Error handling without information disclosure
-
-### Development Security
-- ✅ Comprehensive `.gitignore` for sensitive files
-- ✅ Branch protection rules
-- ✅ Required PR reviews for main branch
-- ✅ Automated dependency security updates
 
 ## 📂 Project Structure
 
@@ -367,46 +300,3 @@ weather-agent/
 ├── uv.lock                      # Dependency lock file
 └── README.md                    # This file
 ```
-
-## 🎯 Performance Metrics
-
-### Response Times
-- **Simple weather queries**: < 1 second
-- **Complex NLP queries**: 2-5 seconds
-- **Calendar integration**: 1-3 seconds
-- **Health checks**: < 100ms
-
-### Scalability
-- **Concurrent requests**: 100+ (Cloud Run auto-scaling)
-- **Memory usage**: < 512MB typical
-- **Cold start time**: < 1 second
-- **Daily API calls**: 10,000+ (within free tiers)
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and add tests
-4. Ensure all tests pass: `uv run pytest`
-5. Commit your changes: `git commit -m 'Add amazing feature'`
-6. Push to the branch: `git push origin feature/amazing-feature`
-7. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- **Live Demo**: https://weather-agent-xxx-uc.a.run.app
-- **API Documentation**: https://weather-agent-xxx-uc.a.run.app/docs
-- **GitHub Repository**: https://github.com/leo8/weather-agent
-- **Issue Tracker**: https://github.com/leo8/weather-agent/issues
-
-## 👤 Author
-
-**Léo Dray**
-- GitHub: [@leo8](https://github.com/leo8)
-- Project: AI Engineer recruitment demonstration
-
----

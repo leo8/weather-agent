@@ -1,69 +1,13 @@
-# Python
+# Python cache
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# Virtual environments
+# Environment and virtual env
 .env
 .venv/
-venv/
-ENV/
-env/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
 # Git
 .git/
 .gitignore
 
-# Documentation
-Plan.md
-# Note: README.md is needed for package build, so it's not excluded
-# Other markdown files can still be excluded
-DEPLOYMENT.md
-
-# Tests
-tests/
+# Testing cache
 .pytest_cache/
-.coverage
-htmlcov/
-
-# Logs
-*.log
-logs/
-
-# Temporary files
-*.tmp
-*.temp 
