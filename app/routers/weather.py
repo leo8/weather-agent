@@ -35,8 +35,16 @@ async def get_current_weather(location: str):
         
         return weather_data
     
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error fetching weather for {location}: {e}")
+        # Check if it's an API key issue
+        if "401" in str(e) or "api" in str(e).lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Weather service unavailable - API configuration required"
+            )
         raise HTTPException(
             status_code=500, 
             detail="Internal server error while fetching weather data"
@@ -65,8 +73,16 @@ async def get_weather_forecast(
         
         return forecast_data
     
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error fetching forecast for {location}: {e}")
+        # Check if it's an API key issue
+        if "401" in str(e) or "api" in str(e).lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Weather service unavailable - API configuration required"
+            )
         raise HTTPException(
             status_code=500, 
             detail="Internal server error while fetching forecast data"
@@ -95,8 +111,16 @@ async def query_weather(weather_query: WeatherQuery):
         
         return weather_data
     
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error processing weather query: {e}")
+        # Check if it's an API key issue
+        if "401" in str(e) or "api" in str(e).lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Weather service unavailable - API configuration required"
+            )
         raise HTTPException(
             status_code=500, 
             detail="Internal server error while processing weather query"

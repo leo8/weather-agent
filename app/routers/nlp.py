@@ -49,11 +49,11 @@ async def process_natural_language_query(nlp_query: NLPQuery):
             if parsed_query.query_type == "forecast":
                 forecast = await weather_service.get_weather_forecast(parsed_query.location)
                 if forecast:
-                    weather_data = forecast.dict()
+                    weather_data = forecast.model_dump()
             else:
                 current = await weather_service.get_current_weather(parsed_query.location)
                 if current:
-                    weather_data = current.dict()
+                    weather_data = current.model_dump()
         
         # Step 3: Generate natural language response
         if weather_data:
@@ -131,7 +131,7 @@ async def parse_query_only(nlp_query: NLPQuery):
             )
         
         return {
-            "parsed_query": parsed_query.dict(),
+            "parsed_query": parsed_query.model_dump(),
             "query": nlp_query.query
         }
     

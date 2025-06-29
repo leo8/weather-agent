@@ -58,13 +58,13 @@ async def check_calendar_weather(calendar_query: CalendarEventQuery):
         
         if not weather_data:
             raise HTTPException(
-                status_code=404,
-                detail=f"Could not get weather data for {location}"
+                status_code=503,
+                detail=f"Weather service unavailable - could not get data for {location}"
             )
         
         # Generate recommendations
         recommendations = await calendar_service.generate_weather_recommendations(
-            events, weather_data.dict()
+            events, weather_data.model_dump()
         )
         
         # Generate natural language response
@@ -87,6 +87,12 @@ async def check_calendar_weather(calendar_query: CalendarEventQuery):
         raise
     except Exception as e:
         logger.error(f"Error checking calendar weather: {e}")
+        # Check if it's an API key issue
+        if "401" in str(e) or "api" in str(e).lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Calendar weather service unavailable - API configuration required"
+            )
         raise HTTPException(
             status_code=500,
             detail="Internal server error while checking calendar weather"

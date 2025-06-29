@@ -3,7 +3,7 @@ Weather Agent - FastAPI Application
 Main application entry point for the weather agent API.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -50,9 +50,43 @@ if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
     
     @app.get("/", include_in_schema=False)
-    async def serve_frontend():
-        """Serve the frontend application"""
-        return FileResponse(str(frontend_path / "index.html"))
+    async def serve_root(request: Request):
+        """Serve the frontend application or API info based on Accept header"""
+        
+        # Check if client accepts JSON (API request) or HTML (browser request)
+        accept_header = request.headers.get("accept", "")
+        
+        if "application/json" in accept_header or "text/plain" in accept_header:
+            # Return JSON for API clients
+            return {
+                "message": "Weather Agent API",
+                "version": "0.1.0",
+                "docs": "/docs",
+                "health": "/health",
+                "endpoints": {
+                    "weather": "/weather",
+                    "nlp": "/query",
+                    "calendar": "/calendar"
+                }
+            }
+        else:
+            # Return HTML for browsers
+            return FileResponse(str(frontend_path / "index.html"))
+        
+    @app.get("/api/", tags=["API Info"])
+    async def root_api():
+        """Root API endpoint for programmatic access"""
+        return {
+            "message": "Weather Agent API",
+            "version": "0.1.0",
+            "docs": "/docs",
+            "health": "/health",
+            "endpoints": {
+                "weather": "/weather",
+                "nlp": "/query",
+                "calendar": "/calendar"
+            }
+        }
 
 @app.get("/api", tags=["API Info"])
 async def api_info():

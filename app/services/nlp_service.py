@@ -150,7 +150,7 @@ class NLPService:
 
             user_prompt = f"""
             Original query: "{parsed_query.original_query}"
-            Parsed data: {parsed_query.dict()}
+            Parsed data: {parsed_query.model_dump()}
             Weather data: {json.dumps(weather_data, default=str)}
             
             Generate a natural response to the user's weather query.
