@@ -7,7 +7,7 @@ import logging
 import time
 
 from ..services.nlp_service import NLPService
-from ..services.weather_service import WeatherService
+from ..services.weather_service import WeatherService, WeatherServiceUnavailable, WeatherLocationNotFound, WeatherServiceError
 from ..models.nlp import NLPQuery, NLPResponse
 
 logger = logging.getLogger(__name__)
@@ -46,14 +46,21 @@ async def process_natural_language_query(nlp_query: NLPQuery):
         # Step 2: Get weather data if location is available
         weather_data = None
         if parsed_query.location:
-            if parsed_query.query_type == "forecast":
-                forecast = await weather_service.get_weather_forecast(parsed_query.location)
-                if forecast:
-                    weather_data = forecast.model_dump()
-            else:
-                current = await weather_service.get_current_weather(parsed_query.location)
-                if current:
-                    weather_data = current.model_dump()
+            try:
+                if parsed_query.query_type == "forecast":
+                    forecast = await weather_service.get_weather_forecast(parsed_query.location)
+                    if forecast:
+                        weather_data = forecast.model_dump()
+                else:
+                    current = await weather_service.get_current_weather(parsed_query.location)
+                    if current:
+                        weather_data = current.model_dump()
+            except WeatherServiceUnavailable:
+                # API key not configured - continue without weather data
+                weather_data = None
+            except (WeatherLocationNotFound, WeatherServiceError):
+                # Location not found or other weather service error - continue without weather data
+                weather_data = None
         
         # Step 3: Generate natural language response
         if weather_data:
