@@ -8,6 +8,48 @@ __pycache__/
 
 # Environment Variables & Secrets
 .env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Google Cloud Service Account Keys & Credentials
+*.json
+github-actions-key.json
+service-account-*.json
+gcp-key.json
+key.json
+
+# API Keys & Tokens  
+api-keys.txt
+tokens.txt
+credentials.txt
 
 # Operating System
 .DS_Store
+Thumbs.db
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Testing
+.pytest_cache/
+.tox/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
