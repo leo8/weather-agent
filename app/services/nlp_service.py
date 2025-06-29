@@ -122,10 +122,12 @@ class NLPService:
                 break
 
         # Extract location (very basic - would need more sophisticated NER)
-        common_cities = ["london", "paris", "tokyo", "new york", "los angeles", "chicago", "miami"]
+        common_cities = ["london", "paris", "tokyo", "new york", "los angeles", "chicago", "miami", "madrid", "berlin", "san francisco", "francisco"]
         for city in common_cities:
             if city in query_lower:
                 location = city.title()
+                if city == "francisco" and "san" in query_lower:
+                    location = "San Francisco"
                 break
 
         return ParsedQuery(
@@ -175,11 +177,27 @@ class NLPService:
     def _fallback_response(self, parsed_query: ParsedQuery, weather_data: Dict[str, Any]) -> str:
         """Generate a simple response when OpenAI is not available"""
         if not weather_data:
+            if parsed_query.location:
+                if "umbrella" in parsed_query.original_query.lower():
+                    return f"I couldn't get weather information for {parsed_query.location}, but I recommend checking the forecast before deciding about an umbrella."
+                return f"I'm sorry, I couldn't get weather information for {parsed_query.location}. Please check the location name and try again."
             return "I'm sorry, I couldn't get weather information for that location."
         
         location = weather_data.get("location", "that location")
         temp = weather_data.get("current_weather", {}).get("temperature")
         condition = weather_data.get("conditions", [{}])[0].get("description", "unknown")
+        
+        # Enhanced responses based on query context
+        original_query = parsed_query.original_query.lower()
+        
+        if "umbrella" in original_query:
+            rain_conditions = ["rain", "drizzle", "shower", "storm", "thunderstorm"]
+            is_rainy = any(rain_word in condition.lower() for rain_word in rain_conditions)
+            umbrella_advice = "bring an umbrella" if is_rainy else "you probably don't need an umbrella"
+            if temp is not None:
+                return f"The weather in {location} is {condition} with {temp}°C. I'd suggest you {umbrella_advice}."
+            else:
+                return f"The weather in {location} is {condition}. I'd suggest you {umbrella_advice}."
         
         if temp is not None:
             return f"The weather in {location} is {condition} with a temperature of {temp}°C."

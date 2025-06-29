@@ -23,8 +23,8 @@ class TestWeatherAPI:
         """Test current weather endpoint with invalid location."""
         response = client.get("/weather/current/InvalidCityName123")
         
-        # Weather service returns 500 for invalid locations due to exception handling
-        assert response.status_code in [500, 503]
+        # Should return 404 for location not found, or 503 if API is unavailable
+        assert response.status_code in [404, 503]
 
     def test_forecast_endpoint(self, client):
         """Test forecast endpoint."""

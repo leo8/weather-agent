@@ -8,7 +8,7 @@ from typing import Optional
 import logging
 
 from ..services.calendar_service import CalendarService
-from ..services.weather_service import WeatherService
+from ..services.weather_service import WeatherService, WeatherServiceUnavailable, WeatherLocationNotFound, WeatherServiceError
 from ..models.nlp import CalendarEventQuery, CalendarWeatherResponse
 
 logger = logging.getLogger(__name__)
@@ -54,13 +54,13 @@ async def check_calendar_weather(calendar_query: CalendarEventQuery):
         # In a real implementation, you might extract location from events
         # For now, we'll use a default location or extract from query
         location = "New York"  # Default location
-        weather_data = await weather_service.get_current_weather(location)
         
-        if not weather_data:
-            raise HTTPException(
-                status_code=503,
-                detail=f"Weather service unavailable - could not get data for {location}"
-            )
+        try:
+            weather_data = await weather_service.get_current_weather(location)
+        except WeatherServiceUnavailable as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        except (WeatherLocationNotFound, WeatherServiceError) as e:
+            raise HTTPException(status_code=503, detail=f"Weather service unavailable - {str(e)}")
         
         # Generate recommendations
         recommendations = await calendar_service.generate_weather_recommendations(
@@ -87,12 +87,6 @@ async def check_calendar_weather(calendar_query: CalendarEventQuery):
         raise
     except Exception as e:
         logger.error(f"Error checking calendar weather: {e}")
-        # Check if it's an API key issue
-        if "401" in str(e) or "api" in str(e).lower():
-            raise HTTPException(
-                status_code=503,
-                detail="Calendar weather service unavailable - API configuration required"
-            )
         raise HTTPException(
             status_code=500,
             detail="Internal server error while checking calendar weather"

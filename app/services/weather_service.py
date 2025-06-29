@@ -12,6 +12,21 @@ from ..models.weather import WeatherResponse, WeatherData, WeatherCondition, Wea
 logger = logging.getLogger(__name__)
 
 
+class WeatherServiceError(Exception):
+    """Base exception for weather service errors"""
+    pass
+
+
+class WeatherServiceUnavailable(WeatherServiceError):
+    """Raised when the weather service is unavailable (API key issues, etc.)"""
+    pass
+
+
+class WeatherLocationNotFound(WeatherServiceError):
+    """Raised when a location cannot be found"""
+    pass
+
+
 class WeatherService:
     """Service for interacting with weather APIs"""
     
@@ -25,6 +40,9 @@ class WeatherService:
 
     async def get_coordinates(self, location: str) -> Optional[Dict[str, float]]:
         """Get latitude and longitude for a location"""
+        if not self.api_key:
+            raise WeatherServiceUnavailable("Weather service unavailable - API key not configured")
+            
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -45,10 +63,16 @@ class WeatherService:
                         "name": data[0]["name"],
                         "country": data[0]["country"]
                     }
-                return None
+                raise WeatherLocationNotFound(f"Location '{location}' not found")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                logger.error(f"API key authentication failed: {e}")
+                raise WeatherServiceUnavailable("Weather service unavailable - API authentication failed")
+            logger.error(f"HTTP error getting coordinates for {location}: {e}")
+            raise WeatherServiceError(f"Error getting location data: {e}")
         except Exception as e:
             logger.error(f"Error getting coordinates for {location}: {e}")
-            return None
+            raise WeatherServiceError(f"Error getting coordinates: {e}")
 
     async def get_current_weather(self, location: str) -> Optional[WeatherResponse]:
         """Get current weather for a location"""
@@ -56,8 +80,7 @@ class WeatherService:
             # Get coordinates first
             coords = await self.get_coordinates(location)
             if not coords:
-                logger.error(f"Could not find coordinates for location: {location}")
-                return None
+                raise WeatherLocationNotFound(f"Could not find coordinates for location: {location}")
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -101,16 +124,24 @@ class WeatherService:
                     source="OpenWeatherMap"
                 )
 
+        except WeatherServiceError:
+            # Re-raise weather service specific errors
+            raise
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                raise WeatherServiceUnavailable("Weather service unavailable - API authentication failed")
+            logger.error(f"HTTP error fetching weather for {location}: {e}")
+            raise WeatherServiceError(f"Error fetching weather data: {e}")
         except Exception as e:
             logger.error(f"Error fetching weather for {location}: {e}")
-            return None
+            raise WeatherServiceError(f"Error fetching weather: {e}")
 
     async def get_weather_forecast(self, location: str, days: int = 5) -> Optional[WeatherForecast]:
         """Get weather forecast for a location"""
         try:
             coords = await self.get_coordinates(location)
             if not coords:
-                return None
+                raise WeatherLocationNotFound(f"Could not find coordinates for location: {location}")
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -157,9 +188,17 @@ class WeatherService:
                     source="OpenWeatherMap"
                 )
 
+        except WeatherServiceError:
+            # Re-raise weather service specific errors
+            raise
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                raise WeatherServiceUnavailable("Weather service unavailable - API authentication failed")
+            logger.error(f"HTTP error fetching forecast for {location}: {e}")
+            raise WeatherServiceError(f"Error fetching forecast data: {e}")
         except Exception as e:
             logger.error(f"Error fetching forecast for {location}: {e}")
-            return None
+            raise WeatherServiceError(f"Error fetching forecast: {e}")
 
     async def health_check(self) -> bool:
         """Check if the weather service is accessible"""

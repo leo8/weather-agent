@@ -74,7 +74,7 @@ class TestIntegration:
         response = client.get(f"/weather/current/{location}")
         
         # Should handle all major cities (if API is available)
-        assert response.status_code in [200, 500, 503]
+        assert response.status_code in [200, 503]
         
         if response.status_code == 200:
             data = response.json()

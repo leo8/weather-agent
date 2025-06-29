@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import logging
 
-from ..services.weather_service import WeatherService
+from ..services.weather_service import WeatherService, WeatherServiceUnavailable, WeatherLocationNotFound, WeatherServiceError
 from ..models.weather import WeatherResponse, WeatherForecast, WeatherQuery
 
 logger = logging.getLogger(__name__)
@@ -26,25 +26,16 @@ async def get_current_weather(location: str):
     """
     try:
         weather_data = await weather_service.get_current_weather(location)
-        
-        if not weather_data:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Weather data not found for location: {location}"
-            )
-        
         return weather_data
     
-    except HTTPException as he:
-        raise he
+    except WeatherServiceUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except WeatherLocationNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except WeatherServiceError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        logger.error(f"Error fetching weather for {location}: {e}")
-        # Check if it's an API key issue
-        if "401" in str(e) or "api" in str(e).lower():
-            raise HTTPException(
-                status_code=503,
-                detail="Weather service unavailable - API configuration required"
-            )
+        logger.error(f"Unexpected error fetching weather for {location}: {e}")
         raise HTTPException(
             status_code=500, 
             detail="Internal server error while fetching weather data"
@@ -64,25 +55,16 @@ async def get_weather_forecast(
     """
     try:
         forecast_data = await weather_service.get_weather_forecast(location, days)
-        
-        if not forecast_data:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Forecast data not found for location: {location}"
-            )
-        
         return forecast_data
     
-    except HTTPException as he:
-        raise he
+    except WeatherServiceUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except WeatherLocationNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except WeatherServiceError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        logger.error(f"Error fetching forecast for {location}: {e}")
-        # Check if it's an API key issue
-        if "401" in str(e) or "api" in str(e).lower():
-            raise HTTPException(
-                status_code=503,
-                detail="Weather service unavailable - API configuration required"
-            )
+        logger.error(f"Unexpected error fetching forecast for {location}: {e}")
         raise HTTPException(
             status_code=500, 
             detail="Internal server error while fetching forecast data"
@@ -102,25 +84,16 @@ async def query_weather(weather_query: WeatherQuery):
         # For now, just get current weather
         # In the future, this could handle date-specific queries
         weather_data = await weather_service.get_current_weather(weather_query.location)
-        
-        if not weather_data:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Weather data not found for location: {weather_query.location}"
-            )
-        
         return weather_data
     
-    except HTTPException as he:
-        raise he
+    except WeatherServiceUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except WeatherLocationNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except WeatherServiceError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
-        logger.error(f"Error processing weather query: {e}")
-        # Check if it's an API key issue
-        if "401" in str(e) or "api" in str(e).lower():
-            raise HTTPException(
-                status_code=503,
-                detail="Weather service unavailable - API configuration required"
-            )
+        logger.error(f"Unexpected error processing weather query: {e}")
         raise HTTPException(
             status_code=500, 
             detail="Internal server error while processing weather query"
