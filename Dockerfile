@@ -17,8 +17,8 @@ WORKDIR /app
 # Install UV for fast dependency management
 RUN pip install uv
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Copy dependency files and README (needed for package build)
+COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies using UV
 RUN uv sync --frozen --no-dev
