@@ -1,0 +1,107 @@
+name: Deploy Weather Agent to Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: weather-agent
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install UV
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        uv sync --extra test
+
+    - name: Run tests
+      run: |
+        uv run pytest tests/ -v
+
+    - name: Run linting (optional)
+      run: |
+        uv run flake8 app/ --max-line-length=100 --ignore=E203,W503 || true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Deploy to Cloud Run
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker to use gcloud as a credential helper
+      run: |
+        gcloud auth configure-docker
+
+    - name: Create secrets in Secret Manager
+      run: |
+        echo "${{ secrets.OPENAI_API_KEY }}" | gcloud secrets create openai-api-key --data-file=- 2>/dev/null || \
+        echo "${{ secrets.OPENAI_API_KEY }}" | gcloud secrets versions add openai-api-key --data-file=-
+        
+        echo "${{ secrets.OPENWEATHER_API_KEY }}" | gcloud secrets create openweather-api-key --data-file=- 2>/dev/null || \
+        echo "${{ secrets.OPENWEATHER_API_KEY }}" | gcloud secrets versions add openweather-api-key --data-file=-
+
+    - name: Build and Deploy to Cloud Run
+      run: |
+        gcloud builds submit --config cloudbuild.yaml \
+          --substitutions=_SERVICE_NAME=$SERVICE_NAME,_REGION=$REGION
+
+    - name: Get service URL
+      id: get-url
+      run: |
+        URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
+        echo "url=$URL" >> $GITHUB_OUTPUT
+
+    - name: Test deployment
+      run: |
+        sleep 30  # Wait for service to be ready
+        curl -f ${{ steps.get-url.outputs.url }}/health || exit 1
+
+    - name: Comment PR with deployment URL
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '🚀 **Deployment Preview**: ${{ steps.get-url.outputs.url }}\n\n' +
+                  '📖 **API Docs**: ${{ steps.get-url.outputs.url }}/docs\n' +
+                  '🔍 **Health Check**: ${{ steps.get-url.outputs.url }}/health'
+          }) 

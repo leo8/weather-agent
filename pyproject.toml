@@ -1,29 +1,84 @@
 [project]
 name = "weather-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "A natural language weather agent with calendar integration"
 readme = "README.md"
+authors = [
+    {name = "Léo Dray"}
+]
 requires-python = ">=3.9"
 dependencies = [
-    "fastapi>=0.115.14",
-    "httpx>=0.28.1",
-    "openai>=1.92.2",
-    "python-dotenv>=1.1.1",
-    "uvicorn[standard]>=0.34.3",
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "httpx>=0.25.2",
+    "openai>=1.3.0",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.6",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-env>=0.8.0",
     "pytest-cov>=4.1.0",
+    "flake8>=6.0.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+]
+dev = [
+    "pre-commit>=3.0.0",
+    "jupyter>=1.0.0",
 ]
 
-dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0", 
-    "pytest-cov>=4.1.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.5.0",
+[project.urls]
+Homepage = "https://github.com/yourusername/weather-agent"
+Repository = "https://github.com/yourusername/weather-agent"
+Documentation = "https://github.com/yourusername/weather-agent#readme"
+Issues = "https://github.com/yourusername/weather-agent/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
 ]
+env = [
+    "ENVIRONMENT=test",
+    "LOG_LEVEL=DEBUG",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

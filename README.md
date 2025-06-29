@@ -10,6 +10,13 @@ A natural language weather agent built with FastAPI that understands weather que
 - ⚡ **Fast & Modern**: Built with FastAPI, async/await, and modern Python practices
 - 📖 **Auto-generated Documentation**: Interactive API docs with Swagger UI
 - 🔒 **Secure**: Proper secrets management and environment configuration
+- 🚀 **CI/CD Pipeline**: Automated testing and deployment with GitHub Actions
+
+## 🌐 Live Demo
+
+- **Production**: https://weather-agent-xxx-uc.a.run.app
+- **API Documentation**: https://weather-agent-xxx-uc.a.run.app/docs
+- **Health Check**: https://weather-agent-xxx-uc.a.run.app/health
 
 ## 🚀 Quick Start
 
@@ -164,10 +171,14 @@ weather-agent/
 │   ├── routers/         # API endpoints
 │   ├── utils/           # Utility functions
 │   └── main.py          # FastAPI application
+├── frontend/            # Web interface
 ├── tests/               # Test cases
+├── .github/workflows/   # CI/CD pipelines
 ├── .env                 # Environment variables (not in git)
 ├── pyproject.toml       # Project dependencies and metadata
 ├── uv.lock             # Lock file for reproducible builds
+├── Dockerfile          # Container configuration
+├── cloudbuild*.yaml    # Cloud Build configurations
 └── README.md           # This file
 ```
 
@@ -175,7 +186,8 @@ weather-agent/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/` | Root endpoint with API information |
+| `GET` | `/` | Frontend web interface |
+| `GET` | `/api` | API information |
 | `GET` | `/health` | Application health check |
 | `GET` | `/docs` | Interactive API documentation |
 | `POST` | `/query/` | **Main endpoint**: Natural language weather queries |
@@ -204,8 +216,58 @@ uv run mypy app/
 
 ### Running Tests
 ```bash
-uv run pytest
+uv run pytest tests/ -v
 ```
+
+## 🚀 Deployment
+
+### Manual Deployment to Google Cloud Run
+
+```bash
+# Set your project ID
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+
+# Deploy
+./deploy.sh
+```
+
+### CI/CD Pipeline
+
+This project includes automated CI/CD with GitHub Actions:
+
+#### Branch Strategy
+- **`main`**: Production environment (auto-deploys to Cloud Run)
+- **`dev`**: Development environment (auto-deploys to Cloud Run dev instance)
+- **Feature branches**: Run tests only
+
+#### Setup CI/CD
+
+1. **Set up infrastructure:**
+   ```bash
+   export GITHUB_REPO_OWNER="your-username"
+   export GITHUB_REPO_NAME="weather-agent"
+   ./setup-cicd.sh
+   ```
+
+2. **Add GitHub Secrets:**
+   - `GCP_PROJECT_ID`: Your Google Cloud Project ID
+   - `GCP_SA_KEY`: Contents of `github-actions-key.json`
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `OPENWEATHER_API_KEY`: Your OpenWeatherMap API key
+
+3. **Create branches and deploy:**
+   ```bash
+   git checkout -b dev
+   git checkout -b main
+   git push -u origin main
+   ```
+
+#### CI/CD Features
+- ✅ **Automated testing** on pull requests
+- ✅ **Production deployment** on push to `main`
+- ✅ **Development deployment** on push to `dev`
+- ✅ **Health checks** after deployment
+- ✅ **PR comments** with deployment URLs
 
 ## 🚨 Troubleshooting
 
@@ -239,6 +301,7 @@ uv run pytest
 
 - API keys stored in environment variables only
 - `.env` file excluded from version control
+- Google Secret Manager for production secrets
 - No sensitive data in logs or responses
 - CORS configured for development (update for production)
 
