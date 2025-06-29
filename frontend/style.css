@@ -42,6 +42,7 @@ body {
     flex-direction: column;
     background: var(--white);
     box-shadow: var(--shadow-lg);
+    padding-top: 40px; /* Account for dev banner */
 }
 
 /* Header */
@@ -581,4 +582,45 @@ body {
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
     background: var(--text-light);
+}
+
+.version-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.version-badge.dev {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+.version-badge.prod {
+    background: linear-gradient(135deg, #51cf66, #40c057);
+    color: white;
+    box-shadow: 0 2px 8px rgba(81, 207, 102, 0.3);
+}
+
+/* Add a subtle dev environment indicator */
+body::before {
+    content: "🚧 DEVELOPMENT ENVIRONMENT 🚧";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+    text-align: center;
+    padding: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
 } 
