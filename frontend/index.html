@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Agent - AI Weather Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-cloud-sun weather-icon"></i>
+                    <h1>Weather Agent</h1>
+                </div>
+                <div class="subtitle">
+                    Your AI-powered weather assistant
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Chat Interface -->
+        <main class="chat-container">
+            <!-- Welcome Message -->
+            <div class="welcome-section">
+                <div class="welcome-message">
+                    <i class="fas fa-robot"></i>
+                    <h2>Hello! I'm your weather assistant.</h2>
+                    <p>Ask me anything about the weather in natural language!</p>
+                </div>
+                
+                <!-- Example Queries -->
+                <div class="examples">
+                    <h3>Try asking me:</h3>
+                    <div class="example-chips">
+                        <button class="example-chip" data-query="What's the weather like in Paris today?">
+                            <i class="fas fa-location-dot"></i>
+                            Weather in Paris
+                        </button>
+                        <button class="example-chip" data-query="Will it rain tomorrow in Tokyo?">
+                            <i class="fas fa-cloud-rain"></i>
+                            Will it rain tomorrow?
+                        </button>
+                        <button class="example-chip" data-query="Should I bring a jacket to New York this afternoon?">
+                            <i class="fas fa-shirt"></i>
+                            Should I bring a jacket?
+                        </button>
+                        <button class="example-chip" data-query="What's the 5-day forecast for London?">
+                            <i class="fas fa-calendar-days"></i>
+                            5-day forecast
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here dynamically -->
+            </div>
+
+            <!-- Loading Indicator -->
+            <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <span>AI is thinking...</span>
+            </div>
+        </main>
+
+        <!-- Input Section -->
+        <footer class="input-section">
+            <form class="input-form" id="chatForm">
+                <div class="input-container">
+                    <input 
+                        type="text" 
+                        id="messageInput" 
+                        placeholder="Ask me about the weather..." 
+                        autocomplete="off"
+                        maxlength="200"
+                    >
+                    <button type="submit" id="sendButton" aria-label="Send message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </form>
+            <div class="input-hint">
+                Powered by OpenAI GPT and OpenWeatherMap
+            </div>
+        </footer>
+
+        <!-- Status Indicator -->
+        <div class="status-indicator" id="statusIndicator">
+            <div class="status-dot"></div>
+            <span>Connected</span>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal" id="errorModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="errorMessage">
+                Something went wrong. Please try again.
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html> 

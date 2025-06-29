@@ -1,0 +1,13 @@
+# UV Virtual Environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment Variables & Secrets
+.env
+
+# Operating System
+.DS_Store
