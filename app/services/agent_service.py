@@ -310,14 +310,17 @@ class WeatherAgentService:
                 parsed_query=parsed_query
             )
             
-            logger.debug(
-                f"🧠 Thought process completed successfully",
+            # Log the actual thought process for observability
+            logger.info(
+                f"🧠 THINK: {thought_result.reasoning}",
                 extra={
                     "request_id": request_id,
                     "weather_related": thought_result.is_weather_related,
                     "language": thought_result.detected_language,
-                    "actions_planned": len(suggested_actions),
-                    "location_extracted": parsed_query.location if parsed_query else None
+                    "confidence": thought_result.confidence,
+                    "location": parsed_query.location if parsed_query else None,
+                    "query_type": parsed_query.query_type if parsed_query else "other",
+                    "planned_actions": [action.value for action in suggested_actions]
                 }
             )
             
@@ -335,8 +338,8 @@ class WeatherAgentService:
         """
         ACT phase: Execute the actions determined in the thinking phase.
         """
-        logger.debug(
-            f"⚡ Executing {len(thought.suggested_actions)} planned actions",
+        logger.info(
+            f"⚡ ACT: Executing {len(thought.suggested_actions)} actions: {[action.value for action in thought.suggested_actions]}",
             extra={
                 "request_id": request_id,
                 "actions_to_execute": [action.value for action in thought.suggested_actions]
@@ -371,13 +374,22 @@ class WeatherAgentService:
                             data=weather_data.model_dump() if weather_data else None
                         )
                         
+                        # Extract key weather details for logging
+                        temp = None
+                        condition = "unknown"
+                        if weather_data and hasattr(weather_data, 'current_weather'):
+                            temp = weather_data.current_weather.temperature
+                        if weather_data and hasattr(weather_data, 'conditions') and weather_data.conditions:
+                            condition = weather_data.conditions[0].description
+                        
                         logger.info(
-                            f"🌤️ Current weather data retrieved successfully",
+                            f"🌤️ Weather API → Current weather for {thought.parsed_query.location}: {temp}°C, {condition}",
                             extra={
                                 "request_id": request_id,
                                 "location": thought.parsed_query.location,
-                                "has_data": bool(weather_data),
-                                "action_time_ms": (datetime.now() - action_start_time).total_seconds() * 1000
+                                "temperature": temp,
+                                "condition": condition,
+                                "api_call_time_ms": (datetime.now() - action_start_time).total_seconds() * 1000
                             }
                         )
                     else:
@@ -408,13 +420,18 @@ class WeatherAgentService:
                             data=forecast_data.model_dump() if forecast_data else None
                         )
                         
+                        # Extract forecast summary for logging
+                        forecast_summary = "No forecast data"
+                        if forecast_data and hasattr(forecast_data, 'forecast') and forecast_data.forecast:
+                            forecast_summary = f"{len(forecast_data.forecast)} days forecast available"
+                        
                         logger.info(
-                            f"🔮 Weather forecast data retrieved successfully",
+                            f"🔮 Weather API → Forecast for {thought.parsed_query.location}: {forecast_summary}",
                             extra={
                                 "request_id": request_id,
                                 "location": thought.parsed_query.location,
-                                "has_data": bool(forecast_data),
-                                "action_time_ms": (datetime.now() - action_start_time).total_seconds() * 1000
+                                "forecast_days": len(forecast_data.forecast) if forecast_data and hasattr(forecast_data, 'forecast') else 0,
+                                "api_call_time_ms": (datetime.now() - action_start_time).total_seconds() * 1000
                             }
                         )
                     else:
@@ -435,8 +452,8 @@ class WeatherAgentService:
                         success=True,
                         data={"ready_for_direct_response": True}
                     )
-                    logger.debug(
-                        f"💬 Direct response action prepared",
+                    logger.info(
+                        f"💬 No API calls needed → Preparing direct conversational response",
                         extra={"request_id": request_id}
                     )
                 
@@ -490,13 +507,16 @@ class WeatherAgentService:
                     exc_info=True
                 )
         
-        logger.debug(
-            f"⚡ All actions completed",
+        successful_actions = sum(1 for action in actions if action.success)
+        failed_actions = sum(1 for action in actions if not action.success)
+        
+        logger.info(
+            f"⚡ ACT Complete → {successful_actions}/{len(actions)} actions successful",
             extra={
                 "request_id": request_id,
                 "total_actions": len(actions),
-                "successful_actions": sum(1 for action in actions if action.success),
-                "failed_actions": sum(1 for action in actions if not action.success)
+                "successful_actions": successful_actions,
+                "failed_actions": failed_actions
             }
         )
         
@@ -506,12 +526,13 @@ class WeatherAgentService:
         """
         OBSERVE phase: Process action results and generate final response.
         """
-        logger.debug(
-            f"👁️ Starting response generation",
+        logger.info(
+            f"👁️ OBSERVE: Generating {thought.detected_language} response from {len(actions)} action results",
             extra={
                 "request_id": request_id,
-                "language": thought.detected_language,
-                "actions_to_analyze": len(actions)
+                "target_language": thought.detected_language,
+                "actions_to_analyze": len(actions),
+                "successful_actions": sum(1 for action in actions if action.success)
             }
         )
         
@@ -584,9 +605,10 @@ class WeatherAgentService:
             final_response = response.choices[0].message.content.strip()
             
             logger.info(
-                f"👁️ Response generated successfully",
+                f"👁️ OBSERVE Complete → Final response: \"{final_response[:100]}{'...' if len(final_response) > 100 else ''}\"",
                 extra={
                     "request_id": request_id,
+                    "full_response": final_response,
                     "response_length": len(final_response),
                     "target_language": thought.detected_language,
                     "usage_prompt_tokens": response.usage.prompt_tokens if response.usage else None,
@@ -639,12 +661,13 @@ class WeatherAgentService:
             suggested_actions.append(ActionType.DIRECT_RESPONSE)
         
         logger.info(
-            f"🧠 Fallback thinking completed",
+            f"🧠 THINK (Fallback): Query seems {'weather-related' if is_weather_related else 'conversational'} in {detected_language}",
             extra={
                 "request_id": request_id,
                 "weather_related": is_weather_related,
                 "language": detected_language,
-                "actions": [action.value for action in suggested_actions]
+                "actions": [action.value for action in suggested_actions],
+                "reasoning": "Rule-based analysis (OpenAI unavailable)"
             }
         )
         
@@ -659,7 +682,7 @@ class WeatherAgentService:
 
     def _fallback_observe(self, thought: AgentThought, actions: List[AgentAction], request_id: str = "unknown") -> AgentObservation:
         """Fallback observation when OpenAI is not available"""
-        logger.debug(f"👁️ Using template-based fallback observation", extra={"request_id": request_id})
+        logger.info(f"👁️ OBSERVE (Fallback): Using template-based response generation", extra={"request_id": request_id})
         
         # Check if we have successful weather data
         weather_data = None
@@ -699,9 +722,9 @@ class WeatherAgentService:
                 else:
                     final_response = f"The weather in {location} is {condition} with {temp}°C."
                     
-                logger.debug(
-                    f"👁️ Fallback response with weather data",
-                    extra={"request_id": request_id, "location": location, "temperature": temp}
+                logger.info(
+                    f"👁️ OBSERVE (Fallback) → Weather response: \"{final_response}\"",
+                    extra={"request_id": request_id, "location": location, "temperature": temp, "language": thought.detected_language}
                 )
             else:
                 if thought.detected_language == "fr":
@@ -711,9 +734,9 @@ class WeatherAgentService:
                 else:
                     final_response = "Sorry, I couldn't get the weather information."
                     
-                logger.warning(
-                    f"👁️ Fallback response without weather data",
-                    extra={"request_id": request_id, "reason": "no_weather_data"}
+                logger.info(
+                    f"👁️ OBSERVE (Fallback) → No weather data: \"{final_response}\"",
+                    extra={"request_id": request_id, "reason": "no_weather_data", "language": thought.detected_language}
                 )
         else:
             # Non-weather query
@@ -724,8 +747,8 @@ class WeatherAgentService:
             else:
                 final_response = "Hello! I'm a weather assistant. How can I help you with weather information?"
                 
-            logger.debug(
-                f"👁️ Fallback response for non-weather query",
+            logger.info(
+                f"👁️ OBSERVE (Fallback) → Conversational response: \"{final_response}\"",
                 extra={"request_id": request_id, "language": thought.detected_language}
             )
         
