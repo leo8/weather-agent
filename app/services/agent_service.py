@@ -651,9 +651,33 @@ class WeatherAgentService:
         elif any(word in query_lower for word in ["hola", "tiempo", "lluvia", "hace", "será"]):
             detected_language = "es"
         
+        # Simple location extraction
+        location = None
+        import re
+        
+        # Common location patterns
+        location_patterns = [
+            r'\bin\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',  # "in Paris", "in New York"
+            r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:weather|temperature|forecast)',  # "Paris weather"
+            r'(?:weather|temperature|forecast).*?(?:in|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',  # "weather in Paris"
+        ]
+        
+        for pattern in location_patterns:
+            match = re.search(pattern, query)
+            if match:
+                potential_location = match.group(1).strip()
+                # Filter out common non-location words
+                if potential_location.lower() not in ['today', 'tomorrow', 'now', 'currently', 'the', 'weather']:
+                    location = potential_location
+                    break
+        
+        # Determine query type and actions
+        is_forecast = any(word in query_lower for word in ["tomorrow", "next", "forecast", "demain", "mañana"])
+        query_type = "forecast" if is_forecast else ("current" if is_weather_related else "other")
+        
         suggested_actions = []
         if is_weather_related:
-            if any(word in query_lower for word in ["tomorrow", "next", "forecast", "demain", "mañana"]):
+            if is_forecast:
                 suggested_actions.append(ActionType.GET_WEATHER_FORECAST)
             else:
                 suggested_actions.append(ActionType.GET_CURRENT_WEATHER)
@@ -666,6 +690,8 @@ class WeatherAgentService:
                 "request_id": request_id,
                 "weather_related": is_weather_related,
                 "language": detected_language,
+                "location": location,
+                "query_type": query_type,
                 "actions": [action.value for action in suggested_actions],
                 "reasoning": "Rule-based analysis (OpenAI unavailable)"
             }
@@ -677,7 +703,14 @@ class WeatherAgentService:
             confidence=0.4,  # Lower confidence for fallback
             reasoning="Fallback analysis - limited reasoning capabilities",
             suggested_actions=suggested_actions,
-            parsed_query=None
+            parsed_query=ParsedQuery(
+                location=location,
+                date_time=None,
+                weather_aspect=None,
+                query_type=query_type,
+                confidence=0.4,
+                original_query=query
+            )
         )
 
     def _fallback_observe(self, thought: AgentThought, actions: List[AgentAction], request_id: str = "unknown") -> AgentObservation:

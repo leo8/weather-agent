@@ -24,25 +24,28 @@ class TestWeatherAgent:
         
         # Test with a mocked OpenAI client
         with patch.object(agent_service, 'client') as mock_client:
-            # Mock the thought phase
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = """
-            {
-                "is_weather_related": true,
-                "detected_language": "en",
-                "confidence": 0.9,
-                "reasoning": "User is asking for current weather in Paris",
-                "suggested_actions": ["weather_current"],
-                "parsed_query": {
-                    "location": "Paris",
-                    "date_time": null,
-                    "weather_aspect": null,
-                    "query_type": "current"
+            # Mock the thought phase with proper async response
+            async def mock_create(*args, **kwargs):
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = """
+                {
+                    "is_weather_related": true,
+                    "detected_language": "en",
+                    "confidence": 0.9,
+                    "reasoning": "User is asking for current weather in Paris",
+                    "suggested_actions": ["weather_current"],
+                    "parsed_query": {
+                        "location": "Paris",
+                        "date_time": null,
+                        "weather_aspect": null,
+                        "query_type": "current"
+                    }
                 }
-            }
-            """
-            mock_client.chat.completions.create.return_value = mock_response
+                """
+                return mock_response
+            
+            mock_client.chat.completions.create = mock_create
             
             # Mock weather service
             mock_weather_data = {

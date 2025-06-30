@@ -27,7 +27,7 @@ def test_nlp_service_health(client):
     response = client.get("/query/health")  # Fixed endpoint path
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "nlp"
+    assert data["service"] == "nlp-agent"
     assert data["status"] in ["healthy", "unhealthy"]
 
 
