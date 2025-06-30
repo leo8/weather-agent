@@ -1,92 +1,55 @@
 """
 Natural Language Processing router for weather queries
+Uses intelligent agent for smart decision making and multilingual responses
 """
 
 from fastapi import APIRouter, HTTPException
 import logging
 import time
 
-from ..services.nlp_service import NLPService
-from ..services.weather_service import WeatherService, WeatherServiceUnavailable, WeatherLocationNotFound, WeatherServiceError
+from ..services.agent_service import WeatherAgentService
 from ..models.nlp import NLPQuery, NLPResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/query", tags=["Natural Language"])
 
-# Initialize services
-nlp_service = NLPService()
-weather_service = WeatherService()
+# Initialize the weather agent service
+agent_service = WeatherAgentService()
 
 
 @router.post("/", response_model=NLPResponse)
 async def process_natural_language_query(nlp_query: NLPQuery):
     """
-    Process a natural language weather query
+    Process a natural language query using intelligent agent behavior
     
-    This is the main endpoint that combines NLP processing with weather data retrieval
-    to provide natural language responses to weather questions.
+    This endpoint implements intelligent reasoning that:
+    - Only calls weather APIs for weather-related queries
+    - Responds in the same language as the user's question
+    - Uses smart decision making for better user experience
     
-    - **query**: Natural language weather question (e.g., "What's the weather in Paris?")
+    Examples:
+    - **Weather queries**: "What's the weather in Paris?", "¿Lloverá mañana?", "Quel temps fait-il?"
+    - **Non-weather queries**: "Hello, how are you?", "What's your name?"
+    
+    - **query**: Natural language question in any supported language
     - **user_id**: Optional user identifier for personalization
     - **session_id**: Optional session identifier for context
     """
-    start_time = time.time()
-    
     try:
-        # Step 1: Parse the natural language query
-        parsed_query = await nlp_service.parse_weather_query(nlp_query.query)
-        
-        if not parsed_query:
-            raise HTTPException(
-                status_code=400,
-                detail="Could not parse the weather query"
-            )
-        
-        # Step 2: Get weather data if location is available
-        weather_data = None
-        if parsed_query.location:
-            try:
-                if parsed_query.query_type == "forecast":
-                    forecast = await weather_service.get_weather_forecast(parsed_query.location)
-                    if forecast:
-                        weather_data = forecast.model_dump()
-                else:
-                    current = await weather_service.get_current_weather(parsed_query.location)
-                    if current:
-                        weather_data = current.model_dump()
-            except WeatherServiceUnavailable:
-                # API key not configured - continue without weather data
-                weather_data = None
-            except (WeatherLocationNotFound, WeatherServiceError):
-                # Location not found or other weather service error - continue without weather data
-                weather_data = None
-        
-        # Step 3: Generate natural language response
-        if weather_data:
-            natural_response = await nlp_service.generate_natural_response(
-                parsed_query, weather_data
-            )
-        else:
-            if parsed_query.location:
-                natural_response = f"I couldn't find weather information for {parsed_query.location}. Please check the location name and try again."
-            else:
-                natural_response = "I couldn't determine the location from your query. Could you please specify a city or location?"
-        
-        # Calculate processing time
-        processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
-        
-        return NLPResponse(
-            parsed_query=parsed_query,
-            natural_response=natural_response,
-            weather_data=weather_data,
-            processing_time_ms=processing_time
+        # Use the intelligent agent service
+        response = await agent_service.process_query(
+            query=nlp_query.query,
+            user_id=nlp_query.user_id,
+            session_id=nlp_query.session_id
         )
+        
+        return response
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error processing NLP query: {e}")
+        logger.error(f"Error processing query with intelligent agent: {e}")
         raise HTTPException(
             status_code=500,
             detail="Internal server error while processing your query"
@@ -95,58 +58,92 @@ async def process_natural_language_query(nlp_query: NLPQuery):
 
 @router.get("/health")
 async def nlp_service_health():
-    """Check NLP service health"""
+    """Check NLP service health including the intelligent agent"""
     try:
-        nlp_healthy = await nlp_service.health_check()
-        weather_healthy = await weather_service.health_check()
+        agent_healthy = await agent_service.health_check()
+        weather_healthy = await agent_service.weather_service.health_check()
         
         return {
-            "service": "nlp",
-            "status": "healthy" if (nlp_healthy and weather_healthy) else "unhealthy",
+            "service": "nlp-agent",
+            "status": "healthy" if (agent_healthy and weather_healthy) else "unhealthy",
             "components": {
-                "nlp": "healthy" if nlp_healthy else "unhealthy",
+                "agent": "healthy" if agent_healthy else "unhealthy",
                 "weather": "healthy" if weather_healthy else "unhealthy"
             },
-            "openai_configured": bool(nlp_service.api_key),
-            "weather_configured": bool(weather_service.api_key)
+            "features": {
+                "intelligent_reasoning": True,
+                "language_detection": True,
+                "smart_tool_calling": True
+            },
+            "openai_configured": bool(agent_service.api_key),
+            "weather_configured": bool(agent_service.weather_service.api_key)
         }
     
     except Exception as e:
-        logger.error(f"NLP service health check failed: {e}")
+        logger.error(f"NLP agent service health check failed: {e}")
         return {
-            "service": "nlp",
+            "service": "nlp-agent",
             "status": "error",
             "error": str(e)
         }
 
 
-@router.post("/parse")
-async def parse_query_only(nlp_query: NLPQuery):
+@router.post("/test-agent")
+async def test_agent_reasoning(nlp_query: NLPQuery):
     """
-    Parse a natural language query without fetching weather data
+    Test the agent's reasoning capabilities with detailed information
     
-    Useful for testing the NLP parsing capabilities or when you only
-    need to understand the structure of a query.
+    This endpoint shows the internal reasoning process for debugging and 
+    understanding how the agent makes decisions.
     """
     try:
-        parsed_query = await nlp_service.parse_weather_query(nlp_query.query)
+        # Process the query and return detailed reasoning information
+        start_time = time.time()
         
-        if not parsed_query:
-            raise HTTPException(
-                status_code=400,
-                detail="Could not parse the weather query"
-            )
+        # Get the thought phase
+        thought = await agent_service._think(nlp_query.query)
+        
+        # Execute actions
+        actions = await agent_service._act(thought)
+        
+        # Get observation
+        observation = await agent_service._observe(thought, actions)
+        
+        processing_time = (time.time() - start_time) * 1000
         
         return {
-            "parsed_query": parsed_query.model_dump(),
-            "query": nlp_query.query
+            "query": nlp_query.query,
+            "agent_trace": {
+                "thought": {
+                    "is_weather_related": thought.is_weather_related,
+                    "detected_language": thought.detected_language,
+                    "confidence": thought.confidence,
+                    "reasoning": thought.reasoning,
+                    "suggested_actions": [action.value for action in thought.suggested_actions],
+                    "parsed_query": thought.parsed_query.model_dump() if thought.parsed_query else None
+                },
+                "actions": [
+                    {
+                        "type": action.action_type.value,
+                        "success": action.success,
+                        "error": action.error,
+                        "has_data": bool(action.data)
+                    }
+                    for action in actions
+                ],
+                "observation": {
+                    "final_response": observation.final_response,
+                    "language": observation.language,
+                    "confidence": observation.confidence,
+                    "needs_more_actions": observation.needs_more_actions
+                }
+            },
+            "processing_time_ms": processing_time
         }
     
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error parsing query: {e}")
+        logger.error(f"Error in agent reasoning test: {e}")
         raise HTTPException(
             status_code=500,
-            detail="Internal server error while parsing query"
+            detail=f"Error testing agent reasoning: {str(e)}"
         ) 

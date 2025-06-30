@@ -3,7 +3,7 @@ Services for the Weather Agent API
 """
 
 from .weather_service import WeatherService
-from .nlp_service import NLPService
+from .agent_service import WeatherAgentService
 from .calendar_service import CalendarService
 
-__all__ = ["WeatherService", "NLPService", "CalendarService"] 
+__all__ = ["WeatherService", "WeatherAgentService", "CalendarService"] 
