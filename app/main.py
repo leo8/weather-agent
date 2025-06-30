@@ -8,6 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import logging
+import logging.config
+import json
+from datetime import datetime
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 from pathlib import Path
@@ -17,9 +21,117 @@ from .routers import weather_router, nlp_router, calendar_router
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Enhanced logging configuration
+class StructuredFormatter(logging.Formatter):
+    """Custom formatter for structured JSON logging"""
+    
+    def format(self, record):
+        # Create the base log entry
+        log_entry = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno
+        }
+        
+        # Add any extra fields from the log record
+        if hasattr(record, 'extra') and record.extra:
+            log_entry.update(record.extra)
+        
+        # Add exception info if present
+        if record.exc_info:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        
+        return json.dumps(log_entry, ensure_ascii=False)
+
+def setup_logging():
+    """Setup enhanced logging configuration"""
+    environment = os.getenv("ENVIRONMENT", "development")
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    
+    # Create logs directory if it doesn't exist
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    if environment == "production":
+        # Production: JSON structured logging
+        formatter = StructuredFormatter()
+        
+        # Console handler with JSON format
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        
+        # File handler for persistent logs
+        file_handler = logging.FileHandler(log_dir / "weather-agent.jsonl")
+        file_handler.setFormatter(formatter)
+        
+        # Configure root logger
+        logging.basicConfig(
+            level=getattr(logging, log_level),
+            handlers=[console_handler, file_handler],
+            force=True
+        )
+    else:
+        # Development: Human-readable formatting with emojis
+        formatter = logging.Formatter(
+            fmt="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        
+        # Console handler with colors
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        
+        # Optional file handler for development debugging
+        file_handler = logging.FileHandler(log_dir / "weather-agent-dev.log")
+        file_handler.setFormatter(formatter)
+        
+        # Configure root logger
+        logging.basicConfig(
+            level=getattr(logging, log_level),
+            handlers=[console_handler, file_handler],
+            force=True
+        )
+    
+    # Set specific logger levels
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    
+    # Create agent logger with proper level
+    agent_logger = logging.getLogger("app.services.agent_service")
+    agent_logger.setLevel(getattr(logging, log_level))
+    
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"🚀 Logging configured for {environment} environment",
+        extra={
+            "environment": environment,
+            "log_level": log_level,
+            "structured_logging": environment == "production"
+        }
+    )
+
+# Setup logging before app creation
+setup_logging()
 logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan context manager"""
+    # Startup
+    logger.info(
+        "🌤️ Weather Agent API starting up",
+        extra={
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "version": "0.1.0"
+        }
+    )
+    yield
+    # Shutdown
+    logger.info("🌤️ Weather Agent API shutting down")
 
 # Create FastAPI instance
 app = FastAPI(
@@ -27,7 +139,8 @@ app = FastAPI(
     description="A natural language weather agent that provides weather information and calendar integration",
     version="0.1.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -117,7 +230,7 @@ async def health_check():
         "service": "weather-agent",
         "version": "0.1.0",
         "environment": environment,
-        "timestamp": "2024-01-01T00:00:00Z"
+        "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
 if __name__ == "__main__":

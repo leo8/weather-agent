@@ -101,18 +101,77 @@ class WeatherAgentService:
         """
         start_time = datetime.now()
         
+        # Generate unique request ID for tracking
+        request_id = f"{int(start_time.timestamp() * 1000)}"
+        
+        logger.info(
+            "🤖 Agent processing started",
+            extra={
+                "request_id": request_id,
+                "query": query,
+                "user_id": user_id,
+                "session_id": session_id,
+                "timestamp": start_time.isoformat()
+            }
+        )
+        
         try:
             # THINK: Analyze the query and plan actions
-            thought = await self._think(query)
+            logger.debug(f"🧠 Starting THINK phase", extra={"request_id": request_id})
+            thought = await self._think(query, request_id)
+            
+            logger.info(
+                "🧠 THINK phase completed",
+                extra={
+                    "request_id": request_id,
+                    "is_weather_related": thought.is_weather_related,
+                    "detected_language": thought.detected_language,
+                    "confidence": thought.confidence,
+                    "suggested_actions": [action.value for action in thought.suggested_actions],
+                    "reasoning": thought.reasoning
+                }
+            )
             
             # ACT: Execute planned actions based on reasoning
-            actions = await self._act(thought)
+            logger.debug(f"⚡ Starting ACT phase", extra={"request_id": request_id})
+            actions = await self._act(thought, request_id)
+            
+            logger.info(
+                "⚡ ACT phase completed",
+                extra={
+                    "request_id": request_id,
+                    "actions_executed": len(actions),
+                    "successful_actions": sum(1 for action in actions if action.success),
+                    "failed_actions": sum(1 for action in actions if not action.success)
+                }
+            )
             
             # OBSERVE: Process results and generate final response
-            observation = await self._observe(thought, actions)
+            logger.debug(f"👁️ Starting OBSERVE phase", extra={"request_id": request_id})
+            observation = await self._observe(thought, actions, request_id)
+            
+            logger.info(
+                "👁️ OBSERVE phase completed",
+                extra={
+                    "request_id": request_id,
+                    "final_language": observation.language,
+                    "final_confidence": observation.confidence,
+                    "response_length": len(observation.final_response)
+                }
+            )
             
             # Calculate processing time
             processing_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            logger.info(
+                "✅ Agent processing completed successfully",
+                extra={
+                    "request_id": request_id,
+                    "processing_time_ms": processing_time,
+                    "total_actions": len(actions),
+                    "weather_data_included": bool(self._extract_weather_data(actions))
+                }
+            )
             
             return NLPResponse(
                 parsed_query=thought.parsed_query or ParsedQuery(
@@ -129,23 +188,30 @@ class WeatherAgentService:
             )
             
         except Exception as e:
-            logger.error(f"Error in agent processing: {e}")
+            logger.error(
+                "❌ Agent processing failed",
+                extra={
+                    "request_id": request_id,
+                    "error": str(e),
+                    "processing_time_ms": (datetime.now() - start_time).total_seconds() * 1000
+                },
+                exc_info=True
+            )
             return await self._fallback_response(query, str(e))
 
-    async def _think(self, query: str) -> AgentThought:
+    async def _think(self, query: str, request_id: str = "unknown") -> AgentThought:
         """
         THINK phase: Analyze user query and reason about appropriate actions.
-        
-        This phase determines:
-        - Whether the query is weather-related
-        - What language the user is using
-        - What actions should be taken
-        - Parse weather-specific information if relevant
         """
+        logger.debug(f"🧠 Analyzing query for reasoning", extra={"request_id": request_id, "query": query})
+        
         if not self.client:
-            return self._fallback_think(query)
+            logger.warning(f"🧠 Using fallback thinking (no OpenAI client)", extra={"request_id": request_id})
+            return self._fallback_think(query, request_id)
 
         try:
+            logger.debug(f"🧠 Calling GPT-4 for query analysis", extra={"request_id": request_id})
+            
             system_prompt = """
             You are an intelligent weather agent. Analyze the user's query and reason about what actions to take.
 
@@ -192,6 +258,17 @@ class WeatherAgentService:
             )
 
             content = response.choices[0].message.content.strip()
+            
+            logger.debug(
+                f"🧠 GPT-4 response received",
+                extra={
+                    "request_id": request_id,
+                    "response_length": len(content),
+                    "usage_prompt_tokens": response.usage.prompt_tokens if response.usage else None,
+                    "usage_completion_tokens": response.usage.completion_tokens if response.usage else None
+                }
+            )
+            
             if content.startswith("```json"):
                 content = content[7:]
             if content.endswith("```"):
@@ -224,7 +301,7 @@ class WeatherAgentService:
                     original_query=query
                 )
 
-            return AgentThought(
+            thought_result = AgentThought(
                 is_weather_related=thought_data.get("is_weather_related", False),
                 detected_language=thought_data.get("detected_language", "en"),
                 confidence=thought_data.get("confidence", 0.5),
@@ -232,106 +309,215 @@ class WeatherAgentService:
                 suggested_actions=suggested_actions,
                 parsed_query=parsed_query
             )
+            
+            logger.debug(
+                f"🧠 Thought process completed successfully",
+                extra={
+                    "request_id": request_id,
+                    "weather_related": thought_result.is_weather_related,
+                    "language": thought_result.detected_language,
+                    "actions_planned": len(suggested_actions),
+                    "location_extracted": parsed_query.location if parsed_query else None
+                }
+            )
+            
+            return thought_result
 
         except Exception as e:
-            logger.error(f"Error in thinking phase: {e}")
-            return self._fallback_think(query)
+            logger.error(
+                f"🧠 Error in thinking phase, falling back",
+                extra={"request_id": request_id, "error": str(e)},
+                exc_info=True
+            )
+            return self._fallback_think(query, request_id)
 
-    async def _act(self, thought: AgentThought) -> List[AgentAction]:
+    async def _act(self, thought: AgentThought, request_id: str = "unknown") -> List[AgentAction]:
         """
         ACT phase: Execute the actions determined in the thinking phase.
-        
-        Based on the reasoning, this phase will:
-        - Call weather APIs if needed
-        - Prepare for direct responses
-        - Skip unnecessary tool calls
         """
+        logger.debug(
+            f"⚡ Executing {len(thought.suggested_actions)} planned actions",
+            extra={
+                "request_id": request_id,
+                "actions_to_execute": [action.value for action in thought.suggested_actions]
+            }
+        )
+        
         actions = []
         
-        for action_type in thought.suggested_actions:
+        for i, action_type in enumerate(thought.suggested_actions):
+            action_start_time = datetime.now()
+            
             try:
+                logger.debug(
+                    f"⚡ Executing action {i+1}/{len(thought.suggested_actions)}: {action_type.value}",
+                    extra={"request_id": request_id, "action_type": action_type.value}
+                )
+                
                 if action_type == ActionType.GET_CURRENT_WEATHER:
                     if thought.parsed_query and thought.parsed_query.location:
+                        logger.debug(
+                            f"🌤️ Calling weather API for current weather",
+                            extra={"request_id": request_id, "location": thought.parsed_query.location}
+                        )
+                        
                         weather_data = await self.weather_service.get_current_weather(
                             thought.parsed_query.location
                         )
-                        actions.append(AgentAction(
+                        
+                        action_result = AgentAction(
                             action_type=action_type,
                             success=True,
                             data=weather_data.model_dump() if weather_data else None
-                        ))
+                        )
+                        
+                        logger.info(
+                            f"🌤️ Current weather data retrieved successfully",
+                            extra={
+                                "request_id": request_id,
+                                "location": thought.parsed_query.location,
+                                "has_data": bool(weather_data),
+                                "action_time_ms": (datetime.now() - action_start_time).total_seconds() * 1000
+                            }
+                        )
                     else:
-                        actions.append(AgentAction(
+                        action_result = AgentAction(
                             action_type=action_type,
                             success=False,
                             error="No location specified for weather query"
-                        ))
+                        )
+                        logger.warning(
+                            f"🌤️ Current weather request failed - no location",
+                            extra={"request_id": request_id}
+                        )
                 
                 elif action_type == ActionType.GET_WEATHER_FORECAST:
                     if thought.parsed_query and thought.parsed_query.location:
+                        logger.debug(
+                            f"🔮 Calling weather API for forecast",
+                            extra={"request_id": request_id, "location": thought.parsed_query.location}
+                        )
+                        
                         forecast_data = await self.weather_service.get_weather_forecast(
                             thought.parsed_query.location
                         )
-                        actions.append(AgentAction(
+                        
+                        action_result = AgentAction(
                             action_type=action_type,
                             success=True,
                             data=forecast_data.model_dump() if forecast_data else None
-                        ))
+                        )
+                        
+                        logger.info(
+                            f"🔮 Weather forecast data retrieved successfully",
+                            extra={
+                                "request_id": request_id,
+                                "location": thought.parsed_query.location,
+                                "has_data": bool(forecast_data),
+                                "action_time_ms": (datetime.now() - action_start_time).total_seconds() * 1000
+                            }
+                        )
                     else:
-                        actions.append(AgentAction(
+                        action_result = AgentAction(
                             action_type=action_type,
                             success=False,
                             error="No location specified for forecast query"
-                        ))
+                        )
+                        logger.warning(
+                            f"🔮 Forecast request failed - no location",
+                            extra={"request_id": request_id}
+                        )
                 
                 elif action_type == ActionType.DIRECT_RESPONSE:
                     # No external action needed, will be handled in observation
-                    actions.append(AgentAction(
+                    action_result = AgentAction(
                         action_type=action_type,
                         success=True,
                         data={"ready_for_direct_response": True}
-                    ))
+                    )
+                    logger.debug(
+                        f"💬 Direct response action prepared",
+                        extra={"request_id": request_id}
+                    )
                 
                 else:  # NO_ACTION
-                    actions.append(AgentAction(
+                    action_result = AgentAction(
                         action_type=action_type,
                         success=True,
                         data={"no_action_taken": True}
-                    ))
+                    )
+                    logger.debug(
+                        f"⏸️ No action taken as planned",
+                        extra={"request_id": request_id}
+                    )
+                
+                actions.append(action_result)
                     
-            except WeatherServiceUnavailable:
-                actions.append(AgentAction(
+            except WeatherServiceUnavailable as e:
+                action_result = AgentAction(
                     action_type=action_type,
                     success=False,
                     error="Weather service unavailable"
-                ))
-            except WeatherLocationNotFound:
-                actions.append(AgentAction(
+                )
+                actions.append(action_result)
+                logger.error(
+                    f"🌤️ Weather service unavailable",
+                    extra={"request_id": request_id, "action_type": action_type.value, "error": str(e)}
+                )
+                
+            except WeatherLocationNotFound as e:
+                action_result = AgentAction(
                     action_type=action_type,
                     success=False,
                     error="Location not found"
-                ))
+                )
+                actions.append(action_result)
+                logger.error(
+                    f"🌤️ Weather location not found",
+                    extra={"request_id": request_id, "action_type": action_type.value, "location": thought.parsed_query.location if thought.parsed_query else None}
+                )
+                
             except Exception as e:
-                logger.error(f"Error executing action {action_type}: {e}")
-                actions.append(AgentAction(
+                action_result = AgentAction(
                     action_type=action_type,
                     success=False,
                     error=str(e)
-                ))
+                )
+                actions.append(action_result)
+                logger.error(
+                    f"⚡ Action execution failed",
+                    extra={"request_id": request_id, "action_type": action_type.value, "error": str(e)},
+                    exc_info=True
+                )
+        
+        logger.debug(
+            f"⚡ All actions completed",
+            extra={
+                "request_id": request_id,
+                "total_actions": len(actions),
+                "successful_actions": sum(1 for action in actions if action.success),
+                "failed_actions": sum(1 for action in actions if not action.success)
+            }
+        )
         
         return actions
 
-    async def _observe(self, thought: AgentThought, actions: List[AgentAction]) -> AgentObservation:
+    async def _observe(self, thought: AgentThought, actions: List[AgentAction], request_id: str = "unknown") -> AgentObservation:
         """
         OBSERVE phase: Process action results and generate final response.
-        
-        This phase:
-        - Analyzes the results of actions taken
-        - Determines if more actions are needed
-        - Generates the final response in the user's language
         """
+        logger.debug(
+            f"👁️ Starting response generation",
+            extra={
+                "request_id": request_id,
+                "language": thought.detected_language,
+                "actions_to_analyze": len(actions)
+            }
+        )
+        
         if not self.client:
-            return self._fallback_observe(thought, actions)
+            logger.warning(f"👁️ Using fallback observation (no OpenAI client)", extra={"request_id": request_id})
+            return self._fallback_observe(thought, actions, request_id)
 
         try:
             # Prepare context for response generation
@@ -350,6 +536,15 @@ class WeatherAgentService:
                     for action in actions
                 ]
             }
+
+            logger.debug(
+                f"👁️ Calling GPT-4 for response generation",
+                extra={
+                    "request_id": request_id,
+                    "context_size": len(str(context)),
+                    "successful_actions": sum(1 for action in actions if action.success)
+                }
+            )
 
             system_prompt = f"""
             You are a helpful weather assistant. Generate a final response based on:
@@ -388,23 +583,36 @@ class WeatherAgentService:
 
             final_response = response.choices[0].message.content.strip()
             
-            # Determine if more actions are needed (generally no for this implementation)
-            needs_more_actions = False
-            confidence = min(thought.confidence + 0.1, 1.0)  # Slight confidence boost after successful processing
+            logger.info(
+                f"👁️ Response generated successfully",
+                extra={
+                    "request_id": request_id,
+                    "response_length": len(final_response),
+                    "target_language": thought.detected_language,
+                    "usage_prompt_tokens": response.usage.prompt_tokens if response.usage else None,
+                    "usage_completion_tokens": response.usage.completion_tokens if response.usage else None
+                }
+            )
             
             return AgentObservation(
-                needs_more_actions=needs_more_actions,
+                needs_more_actions=False,
                 final_response=final_response,
-                confidence=confidence,
+                confidence=min(thought.confidence + 0.1, 1.0),
                 language=thought.detected_language
             )
 
         except Exception as e:
-            logger.error(f"Error in observation phase: {e}")
-            return self._fallback_observe(thought, actions)
+            logger.error(
+                f"👁️ Error in observation phase, falling back",
+                extra={"request_id": request_id, "error": str(e)},
+                exc_info=True
+            )
+            return self._fallback_observe(thought, actions, request_id)
 
-    def _fallback_think(self, query: str) -> AgentThought:
+    def _fallback_think(self, query: str, request_id: str = "unknown") -> AgentThought:
         """Fallback thinking when OpenAI is not available"""
+        logger.debug(f"🧠 Using rule-based fallback thinking", extra={"request_id": request_id})
+        
         query_lower = query.lower()
         
         # Simple weather detection
@@ -430,6 +638,16 @@ class WeatherAgentService:
         else:
             suggested_actions.append(ActionType.DIRECT_RESPONSE)
         
+        logger.info(
+            f"🧠 Fallback thinking completed",
+            extra={
+                "request_id": request_id,
+                "weather_related": is_weather_related,
+                "language": detected_language,
+                "actions": [action.value for action in suggested_actions]
+            }
+        )
+        
         return AgentThought(
             is_weather_related=is_weather_related,
             detected_language=detected_language,
@@ -439,8 +657,10 @@ class WeatherAgentService:
             parsed_query=None
         )
 
-    def _fallback_observe(self, thought: AgentThought, actions: List[AgentAction]) -> AgentObservation:
+    def _fallback_observe(self, thought: AgentThought, actions: List[AgentAction], request_id: str = "unknown") -> AgentObservation:
         """Fallback observation when OpenAI is not available"""
+        logger.debug(f"👁️ Using template-based fallback observation", extra={"request_id": request_id})
+        
         # Check if we have successful weather data
         weather_data = None
         for action in actions:
@@ -478,6 +698,11 @@ class WeatherAgentService:
                     final_response = f"El tiempo en {location} es {condition} con {temp}°C."
                 else:
                     final_response = f"The weather in {location} is {condition} with {temp}°C."
+                    
+                logger.debug(
+                    f"👁️ Fallback response with weather data",
+                    extra={"request_id": request_id, "location": location, "temperature": temp}
+                )
             else:
                 if thought.detected_language == "fr":
                     final_response = "Désolé, je n'ai pas pu obtenir les informations météo."
@@ -485,6 +710,11 @@ class WeatherAgentService:
                     final_response = "Lo siento, no pude obtener la información del tiempo."
                 else:
                     final_response = "Sorry, I couldn't get the weather information."
+                    
+                logger.warning(
+                    f"👁️ Fallback response without weather data",
+                    extra={"request_id": request_id, "reason": "no_weather_data"}
+                )
         else:
             # Non-weather query
             if thought.detected_language == "fr":
@@ -493,6 +723,11 @@ class WeatherAgentService:
                 final_response = "¡Hola! Soy un asistente del tiempo. ¿Cómo puedo ayudarte con el clima?"
             else:
                 final_response = "Hello! I'm a weather assistant. How can I help you with weather information?"
+                
+            logger.debug(
+                f"👁️ Fallback response for non-weather query",
+                extra={"request_id": request_id, "language": thought.detected_language}
+            )
         
         return AgentObservation(
             needs_more_actions=False,
@@ -513,6 +748,8 @@ class WeatherAgentService:
 
     async def _fallback_response(self, query: str, error: str) -> NLPResponse:
         """Generate a fallback response when the entire process fails"""
+        logger.error(f"❌ Generating fallback response due to error: {error}")
+        
         return NLPResponse(
             parsed_query=ParsedQuery(
                 location=None,
@@ -529,7 +766,10 @@ class WeatherAgentService:
 
     async def health_check(self) -> bool:
         """Check if the agent service is available"""
+        logger.debug("🩺 Running agent health check")
+        
         if not self.client:
+            logger.warning("🩺 Health check failed - no OpenAI client")
             return False
         
         try:
@@ -539,6 +779,11 @@ class WeatherAgentService:
                 messages=[{"role": "user", "content": "Test"}],
                 max_tokens=10
             )
-            return bool(response.choices)
-        except Exception:
+            
+            is_healthy = bool(response.choices)
+            logger.info(f"🩺 Agent health check {'passed' if is_healthy else 'failed'}")
+            return is_healthy
+            
+        except Exception as e:
+            logger.error(f"🩺 Health check failed with error: {e}")
             return False 
