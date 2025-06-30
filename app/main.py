@@ -162,6 +162,14 @@ frontend_path = Path(__file__).parent.parent / "frontend"
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
     
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        """Serve a simple favicon to prevent 404 errors"""
+        # Simple 1x1 transparent PNG as favicon
+        favicon_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xdb\x00\x00\x00\x00IEND\xaeB`\x82'
+        from fastapi.responses import Response
+        return Response(content=favicon_data, media_type="image/png")
+
     @app.get("/", include_in_schema=False)
     async def serve_root(request: Request):
         """Serve the frontend application or API info based on Accept header"""
