@@ -298,12 +298,31 @@ class WeatherAgent {
                         Forecast for ${weatherData.location}
                     </div>
                     <div class="forecast-items">
-                        ${weatherData.forecast.slice(0, 5).map(item => `
-                            <div class="weather-item">
-                                <span>${new Date(item.datetime).toLocaleDateString()}</span>
-                                <strong>${item.temperature}°C - ${item.description}</strong>
-                            </div>
-                        `).join('')}
+                        ${weatherData.forecast.slice(0, 5).map(item => {
+                            const dateTime = new Date(item.date);
+                            const today = new Date();
+                            const tomorrow = new Date(today);
+                            tomorrow.setDate(today.getDate() + 1);
+                            
+                            // Format date and time based on when it is
+                            let dateLabel;
+                            if (dateTime.toDateString() === today.toDateString()) {
+                                dateLabel = `Today ${dateTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+                            } else if (dateTime.toDateString() === tomorrow.toDateString()) {
+                                dateLabel = `Tomorrow ${dateTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+                            } else {
+                                dateLabel = `${dateTime.toLocaleDateString()} ${dateTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+                            }
+                            
+                            const temp = item.weather_data?.temperature || 'N/A';
+                            const desc = item.conditions?.[0]?.description || 'No description';
+                            return `
+                                <div class="weather-item">
+                                    <span>${dateLabel}</span>
+                                    <strong>${temp}°C - ${desc}</strong>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;
