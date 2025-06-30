@@ -31,12 +31,19 @@ class WeatherService:
     """Service for interacting with weather APIs"""
     
     def __init__(self):
+        """Initialize the weather service with OpenWeatherMap API."""
         self.api_key = os.getenv("OPENWEATHER_API_KEY")
-        self.base_url = "https://api.openweathermap.org/data/2.5"
-        self.geocoding_url = "https://api.openweathermap.org/geo/1.0"
-        
-        if not self.api_key:
+        if self.api_key:
+            # Strip whitespace and newlines from the API key
+            self.api_key = self.api_key.strip()
+            if not self.api_key:
+                logger.warning("OPENWEATHER_API_KEY is empty after stripping whitespace")
+                self.api_key = None
+        else:
             logger.warning("OPENWEATHER_API_KEY not found in environment variables")
+        
+        self.base_url = "http://api.openweathermap.org/data/2.5"
+        self.geocoding_url = "http://api.openweathermap.org/geo/1.0"
 
     async def get_coordinates(self, location: str) -> Optional[Dict[str, float]]:
         """Get latitude and longitude for a location"""

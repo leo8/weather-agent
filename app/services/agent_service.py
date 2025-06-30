@@ -26,6 +26,7 @@ except ImportError:
 
 from ..models.nlp import ParsedQuery, NLPResponse
 from ..services.weather_service import WeatherService, WeatherServiceUnavailable, WeatherLocationNotFound, WeatherServiceError
+from ..services.calendar_service import CalendarService
 
 logger = logging.getLogger(__name__)
 
@@ -76,16 +77,32 @@ class WeatherAgentService:
     """
     
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        self.client = None
+        """Initialize the weather agent service with required dependencies."""
         self.weather_service = WeatherService()
+        self.calendar_service = CalendarService()
         
-        if not self.api_key:
-            logger.warning("OPENAI_API_KEY not found in environment variables")
-        elif AsyncOpenAI:
-            self.client = AsyncOpenAI(api_key=self.api_key)
+        # Initialize OpenAI client if API key is available
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if openai_api_key:
+            # Strip whitespace and newlines from the API key
+            openai_api_key = openai_api_key.strip()
+            if openai_api_key:
+                try:
+                    from openai import AsyncOpenAI
+                    self.client = AsyncOpenAI(api_key=openai_api_key)
+                    logger.info("🤖 OpenAI client initialized successfully")
+                except ImportError:
+                    logger.error("❌ OpenAI package not installed")
+                    self.client = None
+                except Exception as e:
+                    logger.error(f"❌ Failed to initialize OpenAI client: {e}")
+                    self.client = None
+            else:
+                logger.warning("⚠️ OPENAI_API_KEY is empty after stripping whitespace")
+                self.client = None
         else:
-            logger.warning("OpenAI package not installed. Agent capabilities limited.")
+            logger.warning("⚠️ OPENAI_API_KEY not found in environment variables")
+            self.client = None
 
     async def process_query(self, query: str, user_id: Optional[str] = None, session_id: Optional[str] = None) -> NLPResponse:
         """
