@@ -4,7 +4,7 @@ function detectEnvironment() {
     const port = window.location.port;
     
     // Detect environment based on URL
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || port === '8000') {
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || port === '8080') {
         return 'local';
     } else if (hostname.includes('-dev') || hostname.includes('development')) {
         return 'development';
@@ -80,7 +80,7 @@ class WeatherAgent {
             return window.location.origin;
         }
         // Local development
-        return 'http://localhost:8000';
+        return 'http://localhost:8080';
     }
     
     init() {

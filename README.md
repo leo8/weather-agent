@@ -176,13 +176,13 @@ graph TD
 
 4. **Run the application**
    ```bash
-   uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
    ```
 
 5. **Access the application**
-   - **Web Interface**: http://localhost:8000 (for easy testing)
-   - **API Documentation**: http://localhost:8000/docs (interactive Swagger UI)
-   - **Health Check**: http://localhost:8000/health (system status)
+   - **Web Interface**: http://localhost:8080 (for easy testing)
+   - **API Documentation**: http://localhost:8080/docs (interactive Swagger UI)
+   - **Health Check**: http://localhost:8080/health (system status)
 
 ## 📖 API Documentation
 
