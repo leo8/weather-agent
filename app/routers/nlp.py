@@ -75,7 +75,7 @@ async def nlp_service_health():
                 "language_detection": True,
                 "smart_tool_calling": True
             },
-            "openai_configured": bool(agent_service.api_key),
+            "openai_configured": bool(agent_service.client),
             "weather_configured": bool(agent_service.weather_service.api_key)
         }
     

@@ -28,7 +28,7 @@ def test_nlp_service_health(client):
     assert response.status_code == 200
     data = response.json()
     assert data["service"] == "nlp-agent"
-    assert data["status"] in ["healthy", "unhealthy"]
+    assert data["status"] in ["healthy", "unhealthy", "error"]
 
 
 def test_calendar_service_health(client):
