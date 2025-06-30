@@ -2,7 +2,6 @@
 name = "weather-agent"
 version = "0.1.0"
 description = "A natural language weather agent with calendar integration"
-readme = "README.md"
 authors = [
     {name = "Léo Dray"}
 ]
